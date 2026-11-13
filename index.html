@@ -12,6 +12,8 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
+<!-- R14: 화면용 한글 글꼴 Pretendard (공개 무료). 인터넷이 안 되면 기기 기본 글꼴 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <!-- 작성: AI 초안 (claude-opus-5-5, 2026-11-12, R08 2026-11-13) / 검토: 미검토
      R08: 질문은 files/질문트리/03_코드북.md(장면)·03b_까닭_코드북.md(까닭·다음)에서만 가져온다
      기록앱 R04 = B 방식(설치형 웹 앱). 화면은 R03과 같고 저장만 바뀜
@@ -24,7 +26,7 @@
   --bg:#F3F6FA; --card:#FFFFFF; --ink:#1C2733; --muted:#66727F; --line:#DFE5EC;
   --accent:#3B7BC8;--grass:#E3F1E8;--chalk:#FFFFFF; --accent-ink:#FFFFFF; --accent-soft:#E6EFFA;
   --good:#2C8F62; --good-soft:#E3F3EB; --bad:#C9673F; --bad-soft:#F8E9E2; --warn:#9A6300; --warn-soft:#FFF3D6;
-  --f-body:'Noto Sans KR',system-ui,-apple-system,sans-serif; --f-head:'Noto Sans KR',system-ui,-apple-system,sans-serif;
+  --f-body:'Pretendard',-apple-system,'Apple SD Gothic Neo',system-ui,-apple-system,sans-serif; --f-head:'Pretendard',-apple-system,'Apple SD Gothic Neo',system-ui,-apple-system,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
@@ -43,7 +45,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1
 .dots i.on{background:var(--accent)}
 .crumb{display:flex;flex-wrap:nowrap;gap:6px;min-height:26px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.crumb::-webkit-scrollbar{display:none}.crumb span{flex:0 0 auto;white-space:nowrap}
 .crumb span{font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
-.q{font-family:var(--f-head);font-size:22px;font-weight:800;margin:4px 0 0;text-wrap:balance}
+.q{font-family:var(--f-head);font-size:22px;font-weight:700;margin:4px 0 0;text-wrap:balance}
 .qs{font-size:14px;color:var(--muted);margin:2px 0 6px}
 .opts{display:flex;flex-direction:column;gap:8px}
 .opt{width:100%;border:2px solid var(--line);background:var(--card);border-radius:16px;padding:14px 16px;text-align:left;font:inherit;font-size:18px;font-weight:700;color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:56px;transition:transform .08s}
@@ -61,7 +63,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1
 .opts.dense{gap:6px}.opts.dense .opt{min-height:48px;padding:10px 16px}.opts.dense .opt.none{min-height:44px}
 .score{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
 .score .opt{justify-content:center;padding:0;font-size:20px;min-height:56px}
-.lbl{font-size:13.5px;font-weight:800;color:var(--muted);margin:0}
+.lbl{font-size:13.5px;font-weight:700;color:var(--muted);margin:0}
 .sentence{background:var(--accent-soft);border-radius:16px;padding:12px 16px;font-size:18px;font-weight:700;line-height:1.6;color:var(--ink)}
 .feel input{width:100%;accent-color:var(--accent);height:44px;-webkit-appearance:none;appearance:none;background:transparent}
 .feel input::-webkit-slider-runnable-track{height:10px;border-radius:10px;background:var(--line)}
@@ -70,14 +72,14 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1
 .feel input::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:var(--accent);border:3px solid var(--card)}
 .feel input.untouched{opacity:.4}
 .ends{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted);font-weight:700}
-.fv{margin:2px 0 0;text-align:center;font-family:var(--f-head);font-size:22px;font-weight:800}
+.fv{margin:2px 0 0;text-align:center;font-family:var(--f-head);font-size:22px;font-weight:700}
 .foot:empty{display:none}
 .foot{margin-top:auto;display:flex;gap:8px;padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px));position:sticky;bottom:0;background:var(--bg);box-shadow:0 -10px 12px -12px rgba(0,0,0,.25);z-index:2}
-.btn{border:0;border-radius:14px;padding:15px 0;font:inherit;font-weight:800;font-size:16px;cursor:pointer;flex:1;min-height:52px}
+.btn{border:0;border-radius:14px;padding:15px 0;font:inherit;font-weight:700;font-size:16px;cursor:pointer;flex:1;min-height:52px}
 .btn.back{background:var(--line);color:var(--ink);flex:0 0 96px}
 .btn.go{background:var(--accent);color:var(--accent-ink)}
 .btn:disabled{opacity:.35;cursor:default}
-.link{border:0;background:none;color:var(--accent);font:inherit;font-weight:800;text-decoration:underline;padding:0 6px;min-height:44px;cursor:pointer}
+.link{border:0;background:none;color:var(--accent);font:inherit;font-weight:700;text-decoration:underline;padding:0 6px;min-height:44px;cursor:pointer}
 .done{text-align:center;font-size:44px;line-height:1;margin:6px 0 0}
 .state{font-size:15px;border-radius:12px;padding:12px 14px;margin:0}
 .state.ok{background:var(--good-soft);color:var(--good)}
@@ -87,7 +89,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1
 /* 끝 화면 요약: 이름표는 작게, 값은 크게 (R07) */
 .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px;text-align:center}
 .stat span{display:block;font-size:13px;color:var(--muted);font-weight:700}
-.stat b{display:block;font-size:22px;font-weight:800;margin-top:2px}
+.stat b{display:block;font-size:22px;font-weight:700;margin-top:2px}
 .item .m{font-size:12.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);letter-spacing:.1em}
 .err{color:var(--bad);font-size:14px;font-weight:700;min-height:22px;margin:0}
@@ -95,7 +97,7 @@ input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;
 #splash{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .25s}
 #splash.out{opacity:0;pointer-events:none}
 #splash svg{width:min(78vw,300px)}
-#splash .st{font-size:26px;font-weight:800;letter-spacing:-.5px;margin:22px 0 0;opacity:0;transform:translateY(8px);animation:spUp .45s .75s ease-out forwards}
+#splash .st{font-size:26px;font-weight:700;letter-spacing:-.5px;margin:22px 0 0;opacity:0;transform:translateY(8px);animation:spUp .45s .75s ease-out forwards}
 #splash .ss{font-size:14px;color:var(--muted);margin:6px 0 0;opacity:0;animation:spUp .45s .85s ease-out forwards}
 #splash .dr{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:spDraw var(--d) var(--t) ease-out forwards}
 #splash .ball{transform:translate(-160px,0) rotate(-360deg);transform-origin:150px 100px;animation:spRoll .55s cubic-bezier(.2,.8,.3,1) forwards}
@@ -109,8 +111,8 @@ input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;
 .opt.good.sel{border-color:var(--good);background:var(--good);color:#fff}
 .opt.bad.sel{border-color:var(--bad);background:var(--bad);color:#fff}
 .opt.none.sel{border-style:solid;color:var(--accent-ink)}
-.ck{font-size:18px;font-weight:900;flex:0 0 auto;margin-left:6px}
-.num{font-size:22px;font-weight:900;flex:0 0 auto}
+.ck{font-size:18px;font-weight:700;flex:0 0 auto;margin-left:6px}
+.num{font-size:22px;font-weight:700;flex:0 0 auto}
 .opts.g2 .opt{position:relative}.opts.g2 .opt .num{position:absolute;top:6px;right:10px}.opts.g2 .opt>span:first-child,.opts.g2 .opt>span.num{display:block}
 .nextbtn{width:100%;flex:none;margin-top:4px}
 .btn.back.wide{width:100%;flex:none}
@@ -121,10 +123,10 @@ input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;
 .wk-t{margin:0;font-size:15px;font-weight:700;color:var(--muted)}.wk-t b{font-size:28px;color:var(--good);margin:0 2px;font-variant-numeric:tabular-nums}
 .wk-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:8px 0 6px}
 .wk-c{display:flex;flex-direction:column;align-items:center;gap:3px}.wk-c small{font-size:12px;color:var(--muted);font-weight:700}
-.wk-d{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:16px}
+.wk-d{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:16px}
 .wk-d.on{background:var(--good);border-color:var(--good)}
 .wk-d.fut{border-style:dashed;opacity:.5}
-.wk-m{margin:0;font-size:16px;font-weight:800;color:var(--ink)}
+.wk-m{margin:0;font-size:16px;font-weight:700;color:var(--ink)}
 .wk.anim .wk-d.on{animation:wkPop .45s cubic-bezier(.3,1.6,.5,1) both;animation-delay:calc(var(--i)*.12s + .2s)}
 .wk.anim .wk-d.now{animation:wkPop .55s cubic-bezier(.3,1.6,.5,1) both,wkRing 1.2s 1.2s ease-out 2;animation-delay:calc(var(--i)*.12s + .35s),calc(var(--i)*.12s + .9s)}
 .wk.anim .wk-m{animation:wkUp .5s ease-out both;animation-delay:1.3s}
@@ -132,8 +134,8 @@ input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;
 @keyframes wkRing{0%{box-shadow:0 0 0 0 rgba(44,143,98,.55)}100%{box-shadow:0 0 0 14px rgba(44,143,98,0)}}
 @keyframes wkUp{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.wk.anim *{animation:none!important}}
-.wk-mini{font-size:13.5px;font-weight:800;color:var(--good);margin:0}
-.pk{color:var(--accent);font-weight:900}.pk.good{color:var(--good)}.pk.bad{color:var(--bad)}
+.wk-mini{font-size:13.5px;font-weight:700;color:var(--good);margin:0}
+.pk{color:var(--accent);font-weight:700;letter-spacing:.02em}.pk.good{color:var(--good)}.pk.bad{color:var(--bad)}
 .sentence{font-weight:500}.item{line-height:1.6}
 </style>
 </head>
@@ -142,7 +144,7 @@ input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;
 <script>
 // ===== 설정: 아버지가 구글 스크립트를 배포한 뒤 받은 주소를 넣는다 =====
 const ENDPOINT='https://script.google.com/macros/s/AKfycbylTiq7UfS83xCoZvA-_71Io9rwS29PfuExHS-wjzP4xp06jhECu57CO8G1Kz69C2nKbg/exec';
-const APP='R13';
+const APP='R14';
 
 // 장면 트리: files/질문트리/03_코드북.md (반복 1, 2026-11-13)
 const TREE=[
