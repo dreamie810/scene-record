@@ -144,7 +144,7 @@ input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;
 <script>
 // ===== 설정: 아버지가 구글 스크립트를 배포한 뒤 받은 주소를 넣는다 =====
 const ENDPOINT='https://script.google.com/macros/s/AKfycbylTiq7UfS83xCoZvA-_71Io9rwS29PfuExHS-wjzP4xp06jhECu57CO8G1Kz69C2nKbg/exec';
-const APP='R14';
+const APP='R15';
 
 // 장면 트리: files/질문트리/03_코드북.md (반복 1, 2026-11-13)
 const TREE=[
@@ -340,6 +340,7 @@ function render(){
   ${stateLine()}
   ${left>0?`${nextBtn(true,"nextScene()",`다음 장면: ${esc(S.seq[S.pos+1]===NONE?NONE:S.seq[S.pos+1])}`)}<button class="btn back wide" onclick="finishDay()">여기서 마치기</button>`
    :`${nextBtn(true,"finishDay()",'오늘 기록 마치기')}<button class="btn back wide" onclick="oneMore()">한 장면 더 기록하기</button>`}`,'');return;}
+ if(st===9||st===10)return renderEx();
  if(st===8){const recent=lsGet(K.recent,[]); const ids=new Set(S.doneList.map(r=>r.id));
   P(`<p class="done">✅</p><p class="q" style="text-align:center">오늘 기록을 마쳤다</p>
   ${weekCard(true)}
@@ -368,7 +369,46 @@ function doneNext(){const v=S.pickNext;if(!v)return;
  if(v===NONE){S.next=null;S.noneOpen='다음';render();return;}
  S.nones=S.nones.filter(x=>x!=='다음');delete S.noneText['다음'];S.next=v;mark('다음');go(6);}
 function nextScene(){S.pos++;saveState=null;openScene();}
-function finishDay(){mark('끝');S.step=8;render();}
+function finishDay(){mark('끝');exStart();}
+// ===== R15 시안: 「오늘 더 남길 것」 (일기 비교 2026-11-13) =====
+// 주소 끝 ?mode=A : 항목마다 「남길까?」 예/아니오 → 예면 그 항목
+// 주소 끝 ?mode=B : 한 화면에서 여러 개 고르기 → 고른 것만 차례로 (기본)
+const MODE='B'; // 사용자 결정 2026-11-13: 한 화면에서 고르기 (A안 시안은 기록앱_R15시안.html ?mode=A)
+const EXTRA=[
+ {k:'몸 상태',ask:'오늘 몸 상태는?',type:'pick',opts:['좋음','보통','무거움','아픈 곳 있음']},
+ {k:'포지션',ask:'오늘 선 자리는?',type:'pick',opts:['센터백','수비형 미드필더','기타']},
+ {k:'기본기 훈련',ask:'오늘 기본기 훈련은?',type:'pick+text',opts:['잘됨','아쉬움'],ph:'예: 패턴 패스가 어제보다 잘됐다'},
+ {k:'팀·동료',ask:'팀·동료와 있었던 일은?',type:'text',ph:'예: 이름을 몰라 콜을 못 했다'},
+ {k:'오늘 한 줄',ask:'오늘 한 줄',type:'text',ph:'예: 미드필더 움직임을 더 알고 싶다'}
+];
+function exStart(){S.ex={sel:[],seq:[],pos:0,askI:0,ans:{},yn:null,pick:null};S.step=9;render();}
+function exItem(){return EXTRA.find(e=>e.k===S.ex.seq[S.ex.pos]);}
+function exToggle(k){const a=S.ex.sel;if(k==='없음'){S.ex.sel=a.includes('없음')?[]:['없음'];return;}S.ex.sel=a.filter(x=>x!=='없음');const i=S.ex.sel.indexOf(k);if(i>=0)S.ex.sel.splice(i,1);else S.ex.sel.push(k);}
+function exMenuNext(){const sel=S.ex.sel.filter(x=>x!=='없음');mark('더 남길 것');if(!sel.length)return exFinish();S.ex.seq=EXTRA.map(e=>e.k).filter(k=>sel.includes(k));S.ex.pos=0;S.ex.pick=null;go(10);}
+function exYN(){const e=EXTRA[S.ex.askI];mark('남길까 '+e.k);if(S.ex.yn==='예'){S.ex.seq=[e.k];S.ex.pos=0;S.ex.pick=null;S.ex.yn=null;go(10);}else{S.ex.yn=null;exAskNext();}}
+function exAskNext(){S.ex.askI++;if(S.ex.askI>=EXTRA.length)return exFinish();go(9);}
+function exItemNext(){const e=exItem();const t=document.getElementById('xt');const v={};if(S.ex.pick)v.pick=S.ex.pick;if(t&&t.value.trim())v.text=t.value.trim();S.ex.ans[e.k]=v;mark(e.k);S.ex.pick=null;S.ex.draft='';
+ if(MODE==='A'){exAskNext();return;}
+ S.ex.pos++;if(S.ex.pos>=S.ex.seq.length)return exFinish();go(10);}
+function exFinish(){const ans=S.ex.ans;if(Object.keys(ans).length){const j=v=>v?[v.pick,v.text].filter(Boolean).join(' / '):'';
+  const rec={id:uid(),app:APP,date:today(),createdAt:Date.now(),kind:S.kind,score:S.score,type:'하루',cond:j(ans['몸 상태']),position:j(ans['포지션']),basic:j(ans['기본기 훈련']),team:j(ans['팀·동료']),oneline:j(ans['오늘 한 줄']),times:S.times,sentence:'(오늘 더 남길 것)'};
+  lsSet(K.q,[...lsGet(K.q,[]),rec]);flush();}
+ S.step=8;render();}
+function renderEx(){const st=S.step,P=(i,f)=>{page(i,f);if(soft)lockUntil=0;};
+ if(st===9&&MODE==='B'){P(`<p class="q">오늘 더 남길 것은?</p><p class="qs">있으면 모두 고른다. 없으면 「없음」</p>
+  <div class="opts g2">${EXTRA.map(e=>{const i=S.ex.sel.indexOf(e.k);return `<button class="opt${sel(i>=0)}" onclick="tap(()=>exToggle('${e.k}'))"><span>${e.k}</span>${i>=0?`<span class="num">${circled(i)}</span>`:''}</button>`;}).join('')}
+  <button class="opt none${sel(S.ex.sel.includes('없음'))}" onclick="tap(()=>exToggle('없음'))">없음${S.ex.sel.includes('없음')?chk:''}</button></div>
+  ${nextBtn(S.ex.sel.length,'exMenuNext()',S.ex.sel.filter(x=>x!=='없음').length>1?`${S.ex.sel.length}개 남기기`:'다음')}`,'');return;}
+ if(st===9&&MODE==='A'){const e=EXTRA[S.ex.askI];P(`<p class="qs">오늘 더 남길 것 ${S.ex.askI+1}/${EXTRA.length}</p><p class="q"><b class="pk">${e.k}</b>도 남길까?</p>
+  <div class="row2">${['예','아니오'].map(y=>`<button class="opt${sel(S.ex.yn===y)}" style="justify-content:center" onclick="tap(()=>S.ex.yn='${y}')">${y}${S.ex.yn===y?chk:''}</button>`).join('')}</div>
+  ${nextBtn(S.ex.yn,'exYN()')}`,'');return;}
+ if(st===10){const e=exItem();const n=S.ex.seq.length;
+  P(`${MODE==='B'&&n>1?`<p class="qs">${S.ex.pos+1}/${n}</p>`:''}<p class="q">${e.ask}</p>
+  ${e.opts?`<div class="opts">${e.opts.map(o=>`<button class="opt${sel(S.ex.pick===o)}" onclick="tap(()=>S.ex.pick='${o}')">${o}${S.ex.pick===o?chk:''}</button>`).join('')}</div>`:''}
+  ${e.type!=='pick'?`<input class="pw" id="xt" maxlength="80" autocomplete="off" placeholder="${e.ph}" value="${esc(S.ex.draft||'')}" oninput="S.ex.draft=this.value" aria-label="짧게 적기"><p class="qs" style="margin:0">비워 두고 넘어가도 된다</p>`:''}
+  ${nextBtn(e.type==='text'||S.ex.pick,'exItemNext()')}`,'');return;}
+}
+
 function oneMore(){S.extra=true;S.bigs=[];S.seq=[];S.pos=0;Object.assign(S,sceneFields());saveState=null;go(1);}
 
 // 「여기에 없음」을 고르고 「다음」을 누르면 짧게 적는 화면 (목적 ②). 비워도 넘어간다
