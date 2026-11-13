@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>오늘의 장면 기록</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="장면 기록">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F3F6FA">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<!-- 작성: AI 초안 (claude-opus-5-5, 2026-11-12, R08 2026-11-13) / 검토: 미검토
+     R08: 질문은 files/질문트리/03_코드북.md(장면)·03b_까닭_코드북.md(까닭·다음)에서만 가져온다
+     기록앱 R04 = B 방식(설치형 웹 앱). 화면은 R03과 같고 저장만 바뀜
+     저장: 먼저 휴대폰에 보관 → 구글 시트(Apps Script)로 보냄 → 성공하면 보관함에서 지움. 같은 id는 시트가 한 번만 적음
+     첫 실행: 비밀번호 입력(시트 쪽 스크립트 속성 PASSWORD 와 맞아야 함). 비밀번호는 이 코드에 없다
+     분류 항목은 가안. 기준표(FIFA 리포트 등)가 나오면 교체 -->
+<style>
+/* 한 줄 세로 흐름: 휴대폰 한 손 조작, 큰 버튼, 단계마다 한 질문 */
+:root{
+  --bg:#F3F6FA; --card:#FFFFFF; --ink:#1C2733; --muted:#66727F; --line:#DFE5EC;
+  --accent:#3B7BC8;--grass:#E3F1E8;--chalk:#FFFFFF; --accent-ink:#FFFFFF; --accent-soft:#E6EFFA;
+  --good:#2C8F62; --good-soft:#E3F3EB; --bad:#C9673F; --bad-soft:#F8E9E2; --warn:#9A6300; --warn-soft:#FFF3D6;
+  --f-body:'Noto Sans KR',system-ui,-apple-system,sans-serif; --f-head:'Noto Sans KR',system-ui,-apple-system,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141A21; --card:#1D252E; --ink:#E8EDF2; --muted:#9AA6B2; --line:#2E3946;
+  --accent:#6AA3E6;--grass:#1E3328;--chalk:#CFE3D6; --accent-ink:#0E1620; --accent-soft:#22324A;
+  --good:#5CC292; --good-soft:#1E3329; --bad:#E49470; --bad-soft:#3A271F; --warn:#F0C060; --warn-soft:#3A3120; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:480px;margin:0 auto;padding-block:max(14px, env(safe-area-inset-top, 0px)) 0;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:12px;min-height:100%}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.top b{font-family:var(--f-head);font-size:17px}
+.top .date{font-size:13px;color:var(--muted)}
+.dots{display:flex;gap:5px}
+.dots i{width:20px;height:5px;border-radius:5px;background:var(--line)}
+.dots i.on{background:var(--accent)}
+.crumb{display:flex;flex-wrap:nowrap;gap:6px;min-height:26px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.crumb::-webkit-scrollbar{display:none}.crumb span{flex:0 0 auto;white-space:nowrap}
+.crumb span{font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.q{font-family:var(--f-head);font-size:22px;font-weight:800;margin:4px 0 0;text-wrap:balance}
+.qs{font-size:14px;color:var(--muted);margin:2px 0 6px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{width:100%;border:2px solid var(--line);background:var(--card);border-radius:16px;padding:14px 16px;text-align:left;font:inherit;font-size:18px;font-weight:700;color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:56px;transition:transform .08s}
+.opt:active{transform:scale(.97)}
+.opt small{display:block;font-size:14px;margin-top:2px;color:var(--muted);font-weight:500}
+.opt:focus-visible,.btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.opt.none{border-style:dashed;color:var(--muted);font-size:16px;font-weight:600;min-height:50px}
+.opt.good{border-color:var(--good)}
+.opt.bad{border-color:var(--bad)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opts.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.opts.g2 .opt{min-height:76px;padding:12px 14px}.opts.g2 .opt>span:last-child{display:none}.opts.g2 .opt.none{grid-column:1/-1;min-height:50px}
+.cond{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.cond .opt{justify-content:center;padding:0;font-size:22px;min-height:60px}
+.opts.dense{gap:6px}.opts.dense .opt{min-height:48px;padding:10px 16px}.opts.dense .opt.none{min-height:44px}
+.score{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.score .opt{justify-content:center;padding:0;font-size:20px;min-height:56px}
+.lbl{font-size:13.5px;font-weight:800;color:var(--muted);margin:0}
+.sentence{background:var(--accent-soft);border-radius:16px;padding:12px 16px;font-size:18px;font-weight:700;line-height:1.6;color:var(--ink)}
+.feel input{width:100%;accent-color:var(--accent);height:44px;-webkit-appearance:none;appearance:none;background:transparent}
+.feel input::-webkit-slider-runnable-track{height:10px;border-radius:10px;background:var(--line)}
+.feel input::-webkit-slider-thumb{-webkit-appearance:none;width:34px;height:34px;border-radius:50%;background:var(--accent);border:3px solid var(--card);box-shadow:0 1px 4px rgba(0,0,0,.25);margin-top:-12px}
+.feel input::-moz-range-track{height:10px;border-radius:10px;background:var(--line)}
+.feel input::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:var(--accent);border:3px solid var(--card)}
+.feel input.untouched{opacity:.4}
+.ends{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted);font-weight:700}
+.fv{margin:2px 0 0;text-align:center;font-family:var(--f-head);font-size:22px;font-weight:800}
+.foot:empty{display:none}
+.foot{margin-top:auto;display:flex;gap:8px;padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px));position:sticky;bottom:0;background:var(--bg);box-shadow:0 -10px 12px -12px rgba(0,0,0,.25);z-index:2}
+.btn{border:0;border-radius:14px;padding:15px 0;font:inherit;font-weight:800;font-size:16px;cursor:pointer;flex:1;min-height:52px}
+.btn.back{background:var(--line);color:var(--ink);flex:0 0 96px}
+.btn.go{background:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.35;cursor:default}
+.link{border:0;background:none;color:var(--accent);font:inherit;font-weight:800;text-decoration:underline;padding:0 6px;min-height:44px;cursor:pointer}
+.done{text-align:center;font-size:44px;line-height:1;margin:6px 0 0}
+.state{font-size:15px;border-radius:12px;padding:12px 14px;margin:0}
+.state.ok{background:var(--good-soft);color:var(--good)}
+.state.warn{background:var(--warn-soft);color:var(--warn)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px}
+/* 끝 화면 요약: 이름표는 작게, 값은 크게 (R07) */
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px;text-align:center}
+.stat span{display:block;font-size:13px;color:var(--muted);font-weight:700}
+.stat b{display:block;font-size:22px;font-weight:800;margin-top:2px}
+.item .m{font-size:12.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);letter-spacing:.1em}
+.err{color:var(--bad);font-size:14px;font-weight:700;min-height:22px;margin:0}
+/* 시작 화면 (R06): 하루 첫 실행 때 약 1.3초, 누르면 바로 넘어감 */
+#splash{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .25s}
+#splash.out{opacity:0;pointer-events:none}
+#splash svg{width:min(78vw,300px)}
+#splash .st{font-size:26px;font-weight:800;letter-spacing:-.5px;margin:22px 0 0;opacity:0;transform:translateY(8px);animation:spUp .45s .75s ease-out forwards}
+#splash .ss{font-size:14px;color:var(--muted);margin:6px 0 0;opacity:0;animation:spUp .45s .85s ease-out forwards}
+#splash .dr{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:spDraw var(--d) var(--t) ease-out forwards}
+#splash .ball{transform:translate(-160px,0) rotate(-360deg);transform-origin:150px 100px;animation:spRoll .55s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes spUp{to{opacity:1;transform:none}}
+@keyframes spDraw{to{stroke-dashoffset:0}}
+@keyframes spRoll{to{transform:none}}
+@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="top"><b>오늘의 장면 기록</b></div><p class="qs">불러오는 중…</p></div>
+<script>
+// ===== 설정: 아버지가 구글 스크립트를 배포한 뒤 받은 주소를 넣는다 =====
+const ENDPOINT='https://script.google.com/macros/s/AKfycbylTiq7UfS83xCoZvA-_71Io9rwS29PfuExHS-wjzP4xp06jhECu57CO8G1Kz69C2nKbg/exec';
+const APP='R10';
+
+// 장면 트리: files/질문트리/03_코드북.md (반복 1, 2026-11-13)
+const TREE=[
+ {k:'자리 잡기',d:'공이 멀리 있을 때 위치·간격 맞추기',ch:['수비 라인 높이 맞추기','동료와 공 쪽으로 좁히기','미드필드와 수비 사이 공간 막기','뒷공간 막을 준비','나간 동료 뒤 채우기(커버)','우리 공격 중 역습 대비']},
+ {k:'직접 막기',d:'공 가진 상대·공중볼과 맞붙기',ch:['앞으로 나가 압박하기','1대1 수비','공중볼·세컨볼','박스 안·크로스 수비']},
+ {k:'뺏긴 직후',d:'공을 뺏긴 바로 뒤',ch:['바로 다시 뺏기','상대 역습 늦추기','수비 자리로 돌아가기']},
+ {k:'연계 플레이',d:'우리 공일 때 패스·움직임',ch:['압박 벗어나기','앞으로 패스 넣기','패스 받을 각도 만들기','상대를 따라오게 해 공간 만들기','뺏은 뒤 첫 패스']}
+];
+// 까닭 6갈래: files/질문트리/03b_까닭_코드북.md §1 (보기 문구, 문장 속 문구)
+const WHY=[
+ {k:'보기',good:['주변을 미리 봐 둔 것','주변을 미리 봐 두어서'],bad:['주변을 늦게 본 것','주변을 늦게 봐서']},
+ {k:'위치',good:['서 있던 자리가 좋았던 것','서 있던 자리가 좋아서'],bad:['서 있던 자리가 안 맞았던 것','서 있던 자리가 안 맞아서']},
+ {k:'때',good:['움직이는 타이밍이 맞은 것','움직이는 타이밍이 맞아서'],bad:['움직이는 타이밍이 빠르거나 늦은 것','움직이는 타이밍이 빠르거나 늦어서']},
+ {k:'소통',good:['동료와 콜이 맞은 것','동료와 콜이 맞아서'],bad:['동료와 콜이 없거나 엇갈린 것','동료와 콜이 없거나 엇갈려서']},
+ {k:'실행',good:['몸 방향·첫 터치가 좋았던 것','몸 방향·첫 터치가 좋아서'],bad:['몸 방향·첫 터치가 흔들린 것','몸 방향·첫 터치가 흔들려서']},
+ {k:'상대',good:['상대 움직임을 먼저 읽은 것','상대 움직임을 먼저 읽어서'],bad:['상대가 더 잘한 것','상대가 더 잘해서']}
+];
+// 다음에 해 볼 것: 03b §2 (보기 문구, 문장 속 문구)
+const NEXT={보기:['공 오기 전에 고개 돌려 주변 보기','공 오기 전에 고개를 돌려 주변을 본다'],위치:['공과 상대 위치 보고 자리 먼저 잡기','공과 상대 위치를 보고 자리를 먼저 잡는다'],
+ 때:['언제 움직일지(타이밍) 미리 정해 두기','언제 움직일지 미리 정해 둔다'],소통:['동료에게 먼저 콜하기','동료에게 먼저 콜한다'],
+ 실행:['몸 방향 열고 첫 터치 연습하기','몸 방향을 열고 첫 터치를 연습한다'],유지:['오늘처럼 그대로 하기','오늘처럼 그대로 한다']};
+const NONE='여기에 없음';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuffle=a=>{const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;};
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const todayKo=()=>{const d=new Date();return `${d.getMonth()+1}월 ${d.getDate()}일`;};
+const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
+
+// ===== 휴대폰 보관 (보관함 = 아직 못 보낸 기록, 최근 = 지난 기록 5개, 비밀번호) =====
+const K={q:'scene_queue_v1',recent:'scene_recent_v1',pw:'scene_pw_v1'};
+const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
+
+// ===== 보내기 =====
+async function post(body){
+ const r=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
+ return r.json();
+}
+let flushing=false;
+async function flush(){
+ if(flushing)return null; const q=lsGet(K.q,[]); const pw=lsGet(K.pw,null);
+ if(!q.length||!pw||ENDPOINT.startsWith('__'))return null;
+ flushing=true;
+ try{
+  const res=await post({pw,recs:q.slice(0,50)});
+  if(res&&res.ok){const sent=new Set(res.ids||[]);lsSet(K.q,lsGet(K.q,[]).filter(r=>!sent.has(r.id)));return {ok:true};}
+  if(res&&res.err==='bad_password'){try{localStorage.removeItem(K.pw)}catch(e){};return {ok:false,pw:true};}
+  return {ok:false};
+ }catch(e){return {ok:false,net:true};}
+ finally{flushing=false;}
+}
+
+let S,t0,saveState=null;
+function fresh(){S={step:0,kind:null,score:null,big:null,mid:null,res:null,why:null,next:null,match:null,times:{},order:shuffle(TREE.map(t=>t.k)),mids:{},whys:{},nones:[],noneText:{},noneOpen:null};t0=performance.now();}
+fresh();
+function mark(k){const t=performance.now();S.times[k]=Math.round(t-t0);t0=t;}
+function go(n){S.step=n;t0=performance.now();render();}
+
+// 연계 플레이 장면이면 「나가는」 대신 「움직이는」 (2026-11-13 문구 점검)
+const T=x=>x; // R10부터 모든 장면에서 「움직이는」으로 통일해 바꿀 것이 없다
+function whyObj(){return WHY.find(w=>w.k===S.why);}
+function nextOrder(){ // 03b §2: 잘됨이면 「이대로」 맨 위, 아쉬움이면 고른 까닭의 짝 맨 위, 상대를 고르면 바꿀 수 있는 것만
+ const five=['보기','위치','때','소통','실행'];
+ if(S.why==='상대')return S.res==='good'?['유지',...five]:five;
+ const first=S.res==='good'?['유지']:[]; const pair=S.why&&five.includes(S.why)?[S.why]:[];
+ return [...first,...pair,...five.filter(k=>!pair.includes(k))].filter((k,i,a)=>a.indexOf(k)===i); // 아쉬운 장면에는 「이대로」를 두지 않는다
+}
+function sentence(){
+ const when=`오늘 ${S.kind||''}에서`;
+ const nt=S.noneText||{}; const own=nt['중분류']||nt['대분류']; // 「여기에 없음」에 적은 말이 있으면 그 말로
+ const scene=S.mid?`「${S.mid}」 장면은`:own?`「${own}」 장면은`:S.big?`${S.big} 장면은`:'목록에 없던 한 장면은';
+ const res=S.res==='good'?'잘됐다.':'아쉬웠다.';
+ const w=whyObj();
+ const main=w?`${when} ${scene} ${T(w[S.res][1])} ${res}`:nt['까닭']?`${when} ${scene} ${res} 까닭: 「${nt['까닭']}」.`:`${when} ${scene} ${res}`;
+ const nx=S.next&&NEXT[S.next]?` 다음에는 ${T(NEXT[S.next][1])}.`:nt['다음']?` 다음에는 「${nt['다음']}」.`:'';
+ return main+nx;
+}
+function head(){
+ const c=[S.kind,S.big,S.mid,S.res==='good'?'잘된 장면':S.res==='bad'?'아쉬운 장면':null,whyObj()&&S.res?T(whyObj()[S.res][0]):null].filter(Boolean);
+ return `<div class="top"><b>오늘의 장면 기록</b><span class="date">${todayKo()}</span></div>
+ ${S.step<6?`<div class="dots">${[0,1,2,3,4,5].map(i=>`<i class="${i<=S.step?'on':''}"></i>`).join('')}</div><div class="crumb">${c.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:''}`;
+}
+const back=to=>`<button class="btn back" onclick="go(${to})">← 뒤로</button>`;
+let lockUntil=0;
+// 화면이 바뀐 직후의 누름은 무시한다: 빠른 두 번 누름이 다음 화면의 같은 자리 보기를 누르지 않게
+document.addEventListener('click',e=>{if(performance.now()<lockUntil&&e.target.closest('button')){e.stopPropagation();e.preventDefault();}},true);
+function page(inner,foot){document.getElementById('app').innerHTML=head()+inner+`<div class="foot">${foot||''}</div>`;lockUntil=performance.now()+350;}
+
+// ===== 첫 실행: 비밀번호 =====
+let pwErr='';
+function renderPw(){
+ document.getElementById('app').innerHTML=`<div class="top"><b>오늘의 장면 기록</b></div>
+ <p class="q">처음 한 번만 비밀번호를 넣는다</p><p class="qs">아빠에게 받은 비밀번호. 이 휴대폰에 기억된다</p>
+ <input class="pw" id="pw" type="password" autocomplete="off" inputmode="text" aria-label="비밀번호">
+ <p class="err" id="err">${esc(pwErr)}</p>
+ <div class="foot"><button class="btn go" id="pwgo" onclick="checkPw()">확인</button></div>`;
+ setTimeout(()=>{const i=document.getElementById('pw');if(i){i.focus();i.addEventListener('keydown',e=>{if(e.key==='Enter')checkPw();});}},50);
+}
+async function checkPw(){
+ const v=(document.getElementById('pw').value||'').trim(); if(!v){pwErr='비밀번호를 넣는다';renderPw();return;}
+ if(ENDPOINT.startsWith('__')){pwErr='아직 보낼 곳이 설정되지 않았다. 아빠에게 말한다';renderPw();return;}
+ const b=document.getElementById('pwgo');b.disabled=true;b.textContent='확인하는 중…';
+ try{const res=await post({action:'check',pw:v});
+  if(res&&res.ok){lsSet(K.pw,v);pwErr='';fresh();render();flush();return;}
+  pwErr=res&&res.err==='bad_password'?'비밀번호가 맞지 않는다':'확인하지 못했다. 잠시 뒤 다시 누른다';
+ }catch(e){pwErr='인터넷에 연결되지 않았다. 연결된 뒤 다시 누른다';}
+ renderPw();
+}
+
+// 첫 화면: 경기·훈련과 점수를 둘 다 고르면 0.4초 뒤 자동으로 넘어간다 (「다음」 버튼 없음, 2026-11-13)
+function pick0(f,v){S[f]=v;render();if(S.kind&&S.score!==null)setTimeout(()=>{if(S.step===0&&S.kind&&S.score!==null){mark('경기·전체 점수');go(1);}},400);}
+function render(){
+ if(!lsGet(K.pw,null))return renderPw();
+ const st=S.step;
+ if(S.noneOpen)return renderNone();
+ if(st===0){page(`<p class="q">오늘은 경기인가, 훈련인가?</p>
+  <div class="row2">${['경기','훈련'].map(k=>`<button class="opt ${S.kind===k?'sel':''}" style="justify-content:center" onclick="pick0('kind','${k}')">${k==='경기'?'⚽':'🏃'} ${k}</button>`).join('')}</div>
+  <p class="lbl">오늘 ${S.kind||'경기·훈련'} 전체 점수는? (0 아주 아쉬움 ~ 10 아주 좋음)</p>
+  <div class="score">${[0,1,2,3,4,5,6,7,8,9,10].map(n=>`<button class="opt ${S.score===n?'sel':''}" onclick="pick0('score',${n})">${n}</button>`).join('')}</div>
+  ${(()=>{const n=lsGet(K.q,[]).length;return n?`<p class="state warn">아직 못 보낸 기록 ${n}개. 인터넷이 연결되면 자동으로 보낸다</p>`:''})()}`,
+  '');}
+ if(st===1){page(`<p class="q">가장 기억나는 장면은 어떤 상황이었나?</p><p class="qs">하나만 고른다</p>
+  <div class="opts g2">${S.order.map(k=>{const t=TREE.find(x=>x.k===k);return `<button class="opt" onclick="pickBig('${k}')"><span>${t.k}<small>${t.d}</small></span><span>›</span></button>`;}).join('')}
+  <button class="opt none" onclick="none('대분류')">${NONE}</button></div>`,back(0));}
+ if(st===2){const t=TREE.find(x=>x.k===S.big);const o=S.mids[S.big]||(S.mids[S.big]=shuffle(t.ch));
+  page(`<p class="q">「${esc(S.big)}」 중 어떤 장면인가?</p><p class="qs">가장 가까운 것 하나</p>
+  <div class="opts ${o.length>5?'dense':''}">${o.map(c=>`<button class="opt" onclick="pickMid('${c}')">${c}</button>`).join('')}
+  <button class="opt none" onclick="none('중분류')">${NONE}</button></div>`,back(1));}
+ if(st===3){
+  if(!S.res){page(`<p class="q">잘된 장면인가, 아쉬운 장면인가?</p><p class="qs">잘한 날에도 아쉬운 장면은 있다</p>
+   <div class="opts"><button class="opt good" onclick="S.res='good';mark('잘됨·아쉬움');render()">😊 잘된 장면</button><button class="opt bad" onclick="S.res='bad';mark('잘됨·아쉬움');render()">🤔 아쉬운 장면</button></div>`,`<button class="btn back" onclick="go(S.big?(S.mid?2:1):1)">← 뒤로</button>`);}
+  else{const o=S.whys[S.res]||(S.whys[S.res]=shuffle(WHY.map(w=>w.k)));
+   page(`<p class="q">${S.res==='good'?'잘된 까닭은?':'그렇게 된 까닭은?'}</p><p class="qs">가장 큰 까닭 하나</p>
+   <div class="opts ${o.length>5?'dense':''}">${o.map(k=>{const w=WHY.find(x=>x.k===k);return `<button class="opt ${S.res}" onclick="pickWhy('${k}')">${T(w[S.res][0])}</button>`;}).join('')}
+   <button class="opt none" onclick="none('까닭')">${NONE}</button></div>`,`<button class="btn back" onclick="S.res=null;S.why=null;render()">← 뒤로</button>`);}
+ }
+ if(st===4){const o=nextOrder();
+  page(`<p class="q">${S.res==='good'?'다음에도 이어 갈 행동은?':(S.kind==='경기'?'다음 경기에서 할 행동은?':'다음에 할 행동은?')}</p><p class="qs">${S.why==='상대'?'상대 대신 내가 할 수 있는 것 하나':'하나만 고른다'}</p>
+  <div class="opts ${o.length>5?'dense':''}">${o.map(k=>`<button class="opt" onclick="pickNext('${k}')">${T(NEXT[k][0])}</button>`).join('')}
+  <button class="opt none" onclick="none('다음')">${NONE}</button></div>`,`<button class="btn back" onclick="go(3)">← 뒤로</button>`);}
+ if(st===5){
+  page(`<p class="q">이 문장이 그 장면과 맞나?</p><p class="qs">고른 것을 이어 만든 문장이다</p>
+  <div class="sentence">${esc(sentence())}</div>
+  <div class="row2">${['맞다','조금 다르다'].map(m=>`<button class="opt ${S.match===m?'sel':''}" style="justify-content:center" onclick="S.match='${m}';render()">${m==='맞다'?'👍':'✋'} ${m}</button>`).join('')}</div>
+  <p class="qs" style="margin:0;visibility:${S.match==='조금 다르다'?'visible':'hidden'}">고치려면 <button class="link" onclick="go(1)">장면 다시 고르기</button>. 그대로 저장해도 된다</p>`,
+  `${back(4)}<button class="btn go" id="save" ${S.match?'':'disabled'} onclick="save()">저장</button>`);}
+ if(st===6){const recent=lsGet(K.recent,[]);
+  page(`<p class="done">📝</p><p class="q" style="text-align:center">오늘 기록을 마쳤다</p>
+  <div class="sentence">${esc(S.saved.sentence)}</div>
+  <div class="row2"><div class="stat"><span>문장</span><b>${esc(S.saved.match)}</b></div><div class="stat"><span>오늘 전체 점수</span><b>${S.saved.score}점</b></div></div>
+  ${saveState==='ok'?`<p class="state ok">✅ 보냈다. 아빠 기록장에 한 줄 추가됐다.</p>`:saveState==='saving'?`<p class="state warn">이 휴대폰에 보관했다. 아빠에게 보내는 중…</p>`:`<p class="state warn">${esc(saveState||'')}</p>`}
+  ${recent.length>1?`<p class="lbl">지난 기록</p><div class="list">${recent.slice(1,6).map(r=>`<div class="item">${esc(r.sentence)}<div class="m"><span>${esc(r.date)}</span>${r.score!=null?`<span>전체 ${r.score}점</span>`:''}</div></div>`).join('')}</div>`:''}`,
+  `<button class="btn back" style="flex:1" onclick="fresh();saveState=null;render()">새로 기록하기</button>`);}
+}
+// 「여기에 없음」을 누르면 짧게 적는 화면 (목적 ②: 새 개념 후보, 01_방법_추출 §5). 비워도 넘어간다
+function renderNone(){const w=S.noneOpen;
+ const ask={대분류:'어떤 장면이었나?',중분류:'어떤 장면이었나?',까닭:'까닭은 무엇이었나?',다음:S.kind==='경기'?'다음 경기에서 할 행동은?':'다음에 할 행동은?'}[w];
+ page(`<p class="q">${ask}</p><p class="qs">짧게 적는다. 비워 두고 넘어가도 된다</p>
+ <input class="pw" id="nt" maxlength="40" autocomplete="off" placeholder="${{대분류:'예: 코너킥 수비',중분류:'예: 코너킥 수비',까닭:'예: 공이 미끄러웠다',다음:'예: 스터드 바꾸기'}[w]||''}" value="${esc(S.noneText[w]||'')}" aria-label="짧게 적기">`,
+ `<button class="btn back" onclick="S.noneOpen=null;render()">← 뒤로</button><button class="btn go" onclick="noneDone()">다음</button>`);
+ setTimeout(()=>{const i=document.getElementById('nt');if(i)i.focus();},60);}
+function noneDone(){const w=S.noneOpen;const v=(document.getElementById('nt').value||'').trim();
+ if(v)S.noneText[w]=v;else delete S.noneText[w];
+ if(!S.nones.includes(w))S.nones.push(w);mark(w+'(없음)');S.noneOpen=null;
+ if(w==='대분류'){S.big=null;S.mid=null;go(3);}else if(w==='중분류'){S.mid=null;go(3);}else if(w==='까닭'){S.why=null;go(4);}else{S.next=null;go(5);}}
+function pickBig(k){S.nones=S.nones.filter(x=>x!=='대분류'&&x!=='중분류');delete S.noneText['대분류'];delete S.noneText['중분류'];S.big=k;S.mid=null;mark('대분류');go(2);}
+function pickMid(c){S.nones=S.nones.filter(x=>x!=='중분류');delete S.noneText['중분류'];S.mid=c;mark('중분류');go(3);}
+function pickWhy(w){S.nones=S.nones.filter(x=>x!=='까닭');delete S.noneText['까닭'];S.why=w;mark('까닭');go(4);}
+function pickNext(k){S.nones=S.nones.filter(x=>x!=='다음');delete S.noneText['다음'];S.next=k;mark('다음');go(5);}
+function none(w){S.noneOpen=w;render();}
+
+async function save(){
+ if(S.step!==5||S.saved)return; // 저장을 두 번 눌러도 한 번만 (2026-11-13 시험에서 발견)
+ mark('문장 확인');
+ const w=whyObj();
+ const rec={id:uid(),app:APP,date:today(),createdAt:Date.now(),kind:S.kind,score:S.score,big:S.big,mid:S.mid,res:S.res,
+  why:w?T(w[S.res][0]):null,whyKey:S.why,next:S.next?T(NEXT[S.next][0]):null,noneText:S.noneText,
+  sentence:sentence(),match:S.match,nones:S.nones,times:S.times,order:S.order};
+ // 1) 먼저 휴대폰에 보관한다 (보내는 중에 앱을 닫아도 남는다)
+ const kept=lsSet(K.q,[...lsGet(K.q,[]),rec]);
+ lsSet(K.recent,[rec,...lsGet(K.recent,[])].slice(0,6));
+ S.saved=rec;saveState=kept?'saving':'이 휴대폰에 보관하지 못했다. 보내기를 시도한다';S.step=6;render();
+ // 2) 보낸다. 성공하면 보관함에서 지운다
+ const r=await flush();
+ const stillHere=lsGet(K.q,[]).some(x=>x.id===rec.id);
+ if(!stillHere)saveState='ok';
+ else if(r&&r.pw)saveState='비밀번호가 바뀌었다. 다음에 열 때 새 비밀번호를 넣으면 보관된 기록을 보낸다';
+ else saveState='인터넷이 안 돼서 이 휴대폰에 보관했다. 다음에 열 때 자동으로 보낸다';
+ if(S.step===6&&S.saved&&S.saved.id===rec.id)render();
+}
+
+// 열 때·다시 화면에 돌아올 때 보관된 기록을 보낸다
+addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')flush().then(()=>{if(S.step===0)render();});});
+addEventListener('online',()=>flush().then(()=>{if(S.step===0)render();}));
+// 시작 화면: 하루 첫 실행 때만 보이고, 누르면 바로 닫힌다
+function splash(){
+ const KEY='scene_splash_v1'; let last=null; try{last=localStorage.getItem(KEY);}catch(e){}
+ if(last===today())return;
+ try{localStorage.setItem(KEY,today());}catch(e){}
+ const g='<svg viewBox="0 0 300 200" aria-hidden="true"><rect x="2" y="2" width="296" height="196" rx="14" fill="var(--grass)"/>'
+  +'<rect class="dr" style="--len:880;--t:.35s;--d:.5s" x="20" y="20" width="260" height="160" rx="4" fill="none" stroke="var(--chalk)" stroke-width="3"/>'
+  +'<line class="dr" style="--len:160;--t:.45s;--d:.3s" x1="150" y1="20" x2="150" y2="180" stroke="var(--chalk)" stroke-width="3"/>'
+  +'<circle class="dr" style="--len:190;--t:.5s;--d:.4s" cx="150" cy="100" r="30" fill="none" stroke="var(--chalk)" stroke-width="3"/>'
+  +'<rect class="dr" style="--len:210;--t:.55s;--d:.3s" x="20" y="65" width="35" height="70" fill="none" stroke="var(--chalk)" stroke-width="3"/>'
+  +'<rect class="dr" style="--len:210;--t:.55s;--d:.3s" x="245" y="65" width="35" height="70" fill="none" stroke="var(--chalk)" stroke-width="3"/>'
+  +'<g class="ball"><circle cx="150" cy="100" r="9" fill="#fff" stroke="var(--ink)" stroke-width="1.5"/><path d="M150 94l4 3-1.5 5h-5L146 97z" fill="var(--ink)"/></g></svg>';
+ const el=document.createElement('div'); el.id='splash';
+ el.innerHTML=g+'<p class="st">오늘의 장면 기록</p><p class="ss">가장 기억나는 한 장면</p>';
+ document.body.appendChild(el);
+ let done=false; const close=()=>{if(done)return;done=true;el.classList.add('out');lockUntil=performance.now()+350;setTimeout(()=>el.remove(),300);};
+ el.addEventListener('click',e=>{e.stopPropagation();close();});
+ setTimeout(close,matchMedia('(prefers-reduced-motion: reduce)').matches?700:1700);
+}
+splash();
+render(); flush().then(()=>{if(S.step===0)render();});
+if('serviceWorker' in navigator && location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body>
+</html>
