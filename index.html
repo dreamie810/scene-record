@@ -144,7 +144,7 @@ input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;
 <script>
 // ===== 설정: 아버지가 구글 스크립트를 배포한 뒤 받은 주소를 넣는다 =====
 const ENDPOINT='https://script.google.com/macros/s/AKfycbylTiq7UfS83xCoZvA-_71Io9rwS29PfuExHS-wjzP4xp06jhECu57CO8G1Kz69C2nKbg/exec';
-const APP='R15';
+const APP='R16';
 
 // 장면 트리: files/질문트리/03_코드북.md (반복 1, 2026-11-13)
 const TREE=[
@@ -381,7 +381,7 @@ const EXTRA=[
  {k:'팀·동료',ask:'팀·동료와 있었던 일은?',type:'text',ph:'예: 이름을 몰라 콜을 못 했다'},
  {k:'오늘 한 줄',ask:'오늘 한 줄',type:'text',ph:'예: 미드필더 움직임을 더 알고 싶다'}
 ];
-function exStart(){S.ex={sel:[],seq:[],pos:0,askI:0,ans:{},yn:null,pick:null};S.step=9;render();}
+function exStart(){/* R16: 하루 기록의 응답 시간은 앞 장면 것을 빼고 새로 잰다. 「끝」(마지막 장면 화면에서 끝내기까지)만 남긴다 */S.times={'끝':S.times['끝']};t0=performance.now();S.ex={sel:[],seq:[],pos:0,askI:0,ans:{},yn:null,pick:null};S.step=9;render();}
 function exItem(){return EXTRA.find(e=>e.k===S.ex.seq[S.ex.pos]);}
 function exToggle(k){const a=S.ex.sel;if(k==='없음'){S.ex.sel=a.includes('없음')?[]:['없음'];return;}S.ex.sel=a.filter(x=>x!=='없음');const i=S.ex.sel.indexOf(k);if(i>=0)S.ex.sel.splice(i,1);else S.ex.sel.push(k);}
 function exMenuNext(){const sel=S.ex.sel.filter(x=>x!=='없음');mark('더 남길 것');if(!sel.length)return exFinish();S.ex.seq=EXTRA.map(e=>e.k).filter(k=>sel.includes(k));S.ex.pos=0;S.ex.pick=null;go(10);}
