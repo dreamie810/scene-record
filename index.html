@@ -116,6 +116,25 @@ input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;
 .btn.back.wide{width:100%;flex:none}
 .crumb span{background:var(--accent);color:var(--accent-ink)}
 .crumb .seq{background:var(--ink);color:var(--bg)}
+/* R12 주간 기록 카드: 칸이 차례로 차고, 오늘 칸이 튀어 오른다 */
+.wk{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 14px 12px;text-align:center}
+.wk-t{margin:0;font-size:15px;font-weight:700;color:var(--muted)}.wk-t b{font-size:28px;color:var(--good);margin:0 2px;font-variant-numeric:tabular-nums}
+.wk-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:8px 0 6px}
+.wk-c{display:flex;flex-direction:column;align-items:center;gap:3px}.wk-c small{font-size:12px;color:var(--muted);font-weight:700}
+.wk-d{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:16px}
+.wk-d.on{background:var(--good);border-color:var(--good)}
+.wk-d.fut{border-style:dashed;opacity:.5}
+.wk-m{margin:0;font-size:16px;font-weight:800;color:var(--ink)}
+.wk.anim .wk-d.on{animation:wkPop .45s cubic-bezier(.3,1.6,.5,1) both;animation-delay:calc(var(--i)*.12s + .2s)}
+.wk.anim .wk-d.now{animation:wkPop .55s cubic-bezier(.3,1.6,.5,1) both,wkRing 1.2s 1.2s ease-out 2;animation-delay:calc(var(--i)*.12s + .35s),calc(var(--i)*.12s + .9s)}
+.wk.anim .wk-m{animation:wkUp .5s ease-out both;animation-delay:1.3s}
+@keyframes wkPop{0%{transform:scale(0)}100%{transform:scale(1)}}
+@keyframes wkRing{0%{box-shadow:0 0 0 0 rgba(44,143,98,.55)}100%{box-shadow:0 0 0 14px rgba(44,143,98,0)}}
+@keyframes wkUp{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.wk.anim *{animation:none!important}}
+.wk-mini{font-size:13.5px;font-weight:800;color:var(--good);margin:0}
+.pk{color:var(--accent);font-weight:900}.pk.good{color:var(--good)}.pk.bad{color:var(--bad)}
+.sentence{font-weight:500}.item{line-height:1.6}
 </style>
 </head>
 <body>
@@ -123,7 +142,7 @@ input.pw{width:100%;font:inherit;font-size:20px;padding:14px;border-radius:14px;
 <script>
 // ===== 설정: 아버지가 구글 스크립트를 배포한 뒤 받은 주소를 넣는다 =====
 const ENDPOINT='https://script.google.com/macros/s/AKfycbylTiq7UfS83xCoZvA-_71Io9rwS29PfuExHS-wjzP4xp06jhECu57CO8G1Kz69C2nKbg/exec';
-const APP='R11';
+const APP='R13';
 
 // 장면 트리: files/질문트리/03_코드북.md (반복 1, 2026-11-13)
 const TREE=[
@@ -153,7 +172,28 @@ const todayKo=()=>{const d=new Date();return `${d.getMonth()+1}월 ${d.getDate()
 const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
 
 // ===== 휴대폰 보관 (보관함 = 아직 못 보낸 기록, 최근 = 지난 기록 5개, 비밀번호) =====
-const K={q:'scene_queue_v1',recent:'scene_recent_v1',pw:'scene_pw_v1'};
+const K={q:'scene_queue_v1',recent:'scene_recent_v1',pw:'scene_pw_v1',days:'scene_days_v1'};
+// ===== 주간 기록 (R12, 2026-11-13): 기록한 날을 이 휴대폰에 모아 이번 주(월~일) 며칠, 며칠 연속인지 보여 준다 =====
+// 끊긴 날을 탓하는 문구는 쓰지 않는다 (CLAUDE.md 규칙, Greenlees W041)
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function dayList(){const a=new Set(lsGet(K.days,[]));lsGet(K.recent,[]).forEach(r=>r&&r.date&&a.add(r.date));return a;}
+function addDay(){const a=dayList();a.add(today());lsSet(K.days,[...a].sort().slice(-400));}
+function weekInfo(){
+ const have=dayList(), now=new Date(); now.setHours(12,0,0,0);
+ const mon=new Date(now); mon.setDate(now.getDate()-((now.getDay()+6)%7));
+ const days=[...Array(7)].map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);const k=ymd(d);return {k,on:have.has(k),today:k===ymd(now),future:d>now};});
+ let streak=0; const c=new Date(now); while(have.has(ymd(c))){streak++;c.setDate(c.getDate()-1);}
+ return {days,count:days.filter(d=>d.on).length,streak};
+}
+function weekCard(anim){const w=weekInfo();const L=['월','화','수','목','금','토','일'];
+ const msg=w.streak>=2?`어제에 이어 ${w.streak}일 연속`:w.count>=2?`이번 주 ${w.count}번째 기록`:'이번 주 첫 기록';
+ return `<div class="wk${anim?' anim':''}"><p class="wk-t">이번 주 <b class="wk-n" data-n="${w.count}">${anim?0:w.count}</b>일 기록</p>
+ <div class="wk-row">${w.days.map((d,i)=>`<div class="wk-c"><span class="wk-d${d.on?' on':''}${d.today&&d.on?' now':''}${d.future?' fut':''}" style="--i:${i}">${d.on?'✓':''}</span><small>${L[i]}</small></div>`).join('')}</div>
+ <p class="wk-m">${msg}${w.streak>=3?' 🔥':''}</p></div>`;}
+function countUp(){const el=document.querySelector('.wk.anim .wk-n');if(!el)return;const n=+el.dataset.n;
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches){el.textContent=n;return;}
+ let i=0;const step=()=>{el.textContent=i;if(i<n){i++;setTimeout(step,140);}};setTimeout(step,250);}
+
 const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}};
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
 
@@ -196,22 +236,29 @@ function nextOrder(){ // 03b §2: 잘됨이면 「그대로」 맨 위, 고른 �
  const first=S.res==='good'?['유지']:[]; const pair=S.why&&five.includes(S.why)?[S.why]:[];
  return [...first,...pair,...five.filter(k=>!pair.includes(k))].filter((k,i,a)=>a.indexOf(k)===i);
 }
-function sentence(){
- const when=`오늘 ${S.kind||''}에서`;
+// R13: 고른 말에 표시(\u0001…\u0002, 잘됨 \u0003, 아쉬움 \u0004)를 달아 화면에서는 굵은 색 글씨로, 시트에는 표시 없이 보낸다
+const PK='\u0001',PE='\u0002',PG='\u0003',PB='\u0004';
+function sentenceMarked(){
+ const k=x=>PK+x+PE;
+ const when=`오늘 ${S.kind?k(S.kind):''}에서`;
  const nt=S.noneText||{}; const own=nt['중분류']||nt['대분류'];
- const scene=S.mid?`「${S.mid}」 장면은`:own?`「${own}」 장면은`:S.big?`${S.big} 장면은`:'목록에 없던 한 장면은';
- const res=S.res==='good'?'잘됐다.':'아쉬웠다.';
+ const scene=S.mid?`${k('「'+S.mid+'」')} 장면은`:own?`${k('「'+own+'」')} 장면은`:S.big?`${k(S.big)} 장면은`:'목록에 없던 한 장면은';
+ const res=S.res==='good'?PG+'잘됐다'+PE+'.':PB+'아쉬웠다'+PE+'.';
  const w=whyObj();
- const main=w?`${when} ${scene} ${w[S.res][1]} ${res}`:nt['까닭']?`${when} ${scene} ${res} 까닭: 「${nt['까닭']}」.`:`${when} ${scene} ${res}`;
- const nx=S.next&&NEXT[S.next]?` 다음에는 ${NEXT[S.next][1]}.`:nt['다음']?` 다음에는 「${nt['다음']}」.`:'';
+ const main=w?`${when} ${scene} ${k(w[S.res][1])} ${res}`:nt['까닭']?`${when} ${scene} ${res} 까닭: ${k('「'+nt['까닭']+'」')}.`:`${when} ${scene} ${res}`;
+ const nx=S.next&&NEXT[S.next]?` 다음에는 ${k(NEXT[S.next][1])}.`:nt['다음']?` 다음에는 ${k('「'+nt['다음']+'」')}.`:'';
  return main+nx;
 }
+const plain=m=>String(m||'').replace(/[\u0001-\u0004]/g,'');
+function sentence(){return plain(sentenceMarked());}
+// 문장을 화면에 그릴 때: 고른 말은 굵은 파랑, 잘됐다는 초록, 아쉬웠다는 주황. 표시가 없는 옛 기록은 그대로
+function sHTML(m){return esc(m||'').replace(/\u0001/g,'<b class="pk">').replace(/\u0003/g,'<b class="pk good">').replace(/\u0004/g,'<b class="pk bad">').replace(/\u0002/g,'</b>');}
 const circled=n=>'①②③④⑤⑥⑦⑧⑨'[n]||String(n+1);
 function head(){
  const nt=S.noneText||{};
  const c=S.step>=2&&S.step<=6?[S.kind,S.big||nt['대분류']||null,S.mid||nt['중분류']||null,S.res==='good'?'잘된 장면':S.res==='bad'?'아쉬운 장면':null,whyObj()&&S.res?whyObj()[S.res][0]:null].filter(Boolean):(S.kind?[S.kind]:[]);
  const n=S.seq.length; const tag=n>1&&S.step>=2&&S.step<=7?`<span class="seq">장면 ${S.pos+1}/${n}</span>`:'';
- return `<div class="top"><b>오늘의 장면 기록</b><span class="date">${todayKo()}</span></div>
+ return `<div class="top"><b>오늘(${todayKo()})의 장면 기록</b></div>
  ${S.step<=6?`<div class="dots">${[0,1,2,3,4,5,6].map(i=>`<i class="${i<=S.step?'on':''}"></i>`).join('')}</div><div class="crumb">${tag}${c.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:''}`;
 }
 const back=to=>`<button class="btn back" onclick="go(${to})">← 뒤로</button>`;
@@ -225,7 +272,7 @@ const chk='<span class="ck" aria-hidden="true">✓</span>';
 // ===== 첫 실행: 비밀번호 =====
 let pwErr='';
 function renderPw(){
- document.getElementById('app').innerHTML=`<div class="top"><b>오늘의 장면 기록</b></div>
+ document.getElementById('app').innerHTML=`<div class="top"><b>오늘(${todayKo()})의 장면 기록</b></div>
  <p class="q">처음 한 번만 비밀번호를 넣는다</p><p class="qs">아빠에게 받은 비밀번호. 이 휴대폰에 기억된다</p>
  <input class="pw" id="pw" type="password" autocomplete="off" inputmode="text" aria-label="비밀번호">
  <p class="err" id="err">${esc(pwErr)}</p>
@@ -249,9 +296,9 @@ function render(){
  if(!lsGet(K.pw,null))return renderPw();
  if(S.noneOpen)return renderNone();
  const st=S.step, P=(i,f)=>{page(i,f);if(soft)lockUntil=0;};
- if(st===0){P(`<p class="q">오늘(${todayKo()})은 경기인가, 훈련인가?</p>
+ if(st===0){const wi=weekInfo();P(`${wi.count?`<p class="wk-mini">이번 주 ${wi.count}일 기록${wi.streak>=2?` · ${wi.streak}일 연속`:''}</p>`:''}<p class="q">오늘(${todayKo()})은 경기인가, 훈련인가?</p>
   <div class="row2">${['경기','훈련'].map(k=>`<button class="opt${sel(S.kind===k)}" style="justify-content:center" onclick="tap(()=>S.kind='${k}')">${k==='경기'?'⚽':'🏃'} ${k}${S.kind===k?chk:''}</button>`).join('')}</div>
-  <p class="lbl">오늘 ${S.kind||'경기·훈련'} 전체 점수는? (0 아주 아쉬움 ~ 10 아주 좋음)</p>
+  <p class="lbl">오늘 ${S.kind?`<b class="pk">${S.kind}</b>`:'경기·훈련'} 전체 점수는? (0 아주 아쉬움 ~ 10 아주 좋음)</p>
   <div class="score">${[0,1,2,3,4,5,6,7,8,9,10].map(n=>`<button class="opt${sel(S.score===n)}" onclick="tap(()=>S.score=${n})">${n}</button>`).join('')}</div>
   ${nextBtn(S.kind&&S.score!==null,"mark('경기·전체 점수');go(1)")}
   ${(()=>{const n=lsGet(K.q,[]).length;return n?`<p class="state warn">아직 못 보낸 기록 ${n}개. 인터넷이 연결되면 자동으로 보낸다</p>`:''})()}`,'');return;}
@@ -261,7 +308,7 @@ function render(){
   ${(()=>{const i=S.bigs.indexOf(NONE);return `<button class="opt none${sel(i>=0)}" onclick="tap(()=>toggleBig(NONE))">${NONE}${i>=0?` <span class="num">${circled(i)}</span>`:''}</button>`;})()}</div>
   ${nextBtn(S.bigs.length,"startSeq()",S.bigs.length>1?`${S.bigs.length}개 장면 시작`:'다음')}`,S.extra?'':back(0));return;}
  if(st===2){const t=TREE.find(x=>x.k===S.big);const o=S.mids[S.big]||(S.mids[S.big]=shuffle(t.ch));
-  P(`<p class="q">「${esc(S.big)}」 중 어떤 장면인가?</p><p class="qs">가장 가까운 것 하나</p>
+  P(`<p class="q"><b class="pk">「${esc(S.big)}」</b> 중 어떤 장면인가?</p><p class="qs">가장 가까운 것 하나</p>
   <div class="opts ${o.length>5?'dense':''}">${o.map(c=>`<button class="opt${sel(S.pickMid===c)}" onclick="tap(()=>S.pickMid='${c}')">${c}${S.pickMid===c?chk:''}</button>`).join('')}
   <button class="opt none${sel(S.pickMid===NONE)}" onclick="tap(()=>S.pickMid=NONE)">${NONE}${S.pickMid===NONE?chk:''}</button></div>
   ${nextBtn(S.pickMid,"doneMid()")}`,S.pos===0&&!S.extra?back(1):'');return;}
@@ -269,7 +316,7 @@ function render(){
    <div class="opts">${['good','bad'].map(r=>`<button class="opt ${r}${sel(S.pickRes===r)}" onclick="tap(()=>S.pickRes='${r}')">${r==='good'?'😊 잘된 장면':'🤔 아쉬운 장면'}${S.pickRes===r?chk:''}</button>`).join('')}</div>
    ${nextBtn(S.pickRes,"doneRes()")}`,`<button class="btn back" onclick="backFrom3()">← 뒤로</button>`);return;}
  if(st===4){const o=S.whys[S.res]||(S.whys[S.res]=shuffle(WHY.map(w=>w.k)));
-  P(`<p class="q">${S.res==='good'?'잘된 까닭은?':'그렇게 된 까닭은?'}</p><p class="qs">가장 큰 까닭 하나</p>
+  P(`<p class="q">${S.res==='good'?'<b class="pk good">잘된</b> 까닭은?':'<b class="pk bad">아쉬웠던</b> 까닭은?'}</p><p class="qs">가장 큰 까닭 하나</p>
    <div class="opts ${o.length>5?'dense':''}">${o.map(k=>{const w=WHY.find(x=>x.k===k);return `<button class="opt ${S.res}${sel(S.pickWhy===k)}" onclick="tap(()=>S.pickWhy='${k}')">${w[S.res][0]}${S.pickWhy===k?chk:''}</button>`;}).join('')}
    <button class="opt none${sel(S.pickWhy===NONE)}" onclick="tap(()=>S.pickWhy=NONE)">${NONE}${S.pickWhy===NONE?chk:''}</button></div>
    ${nextBtn(S.pickWhy,"doneWhy()")}`,back(3));return;}
@@ -280,24 +327,25 @@ function render(){
   ${nextBtn(S.pickNext,"doneNext()")}`,back(4));return;}
  if(st===6){
   P(`<p class="q">이 문장이 그 장면과 맞나?</p><p class="qs">고른 것을 이어 만든 문장이다</p>
-  <div class="sentence">${esc(sentence())}</div>
+  <div class="sentence">${sHTML(sentenceMarked())}</div>
   <div class="row2">${['맞다','조금 다르다'].map(m=>`<button class="opt${sel(S.match===m)}" style="justify-content:center" onclick="tap(()=>S.match='${m}')">${m==='맞다'?'👍':'✋'} ${m}${S.match===m?chk:''}</button>`).join('')}</div>
   ${nextBtn(S.match,"save()",'저장')}
   <p class="qs" style="margin:0;visibility:${S.match==='조금 다르다'?'visible':'hidden'}">고치려면 <button class="link" onclick="go(2)">세부 장면부터 다시 고르기</button>. 그대로 저장해도 된다</p>`,
   back(5));return;}
  if(st===7){const left=S.seq.length-S.pos-1;
   P(`<p class="done">📝</p><p class="q" style="text-align:center">${S.seq.length>1?`장면 ${S.pos+1}/${S.seq.length} 저장`:'장면 저장'}</p>
-  <div class="sentence">${esc(S.saved.sentence)}</div>
+  <div class="sentence">${sHTML(S.saved.marked||S.saved.sentence)}</div>
   ${stateLine()}
   ${left>0?`${nextBtn(true,"nextScene()",`다음 장면: ${esc(S.seq[S.pos+1]===NONE?NONE:S.seq[S.pos+1])}`)}<button class="btn back wide" onclick="finishDay()">여기서 마치기</button>`
    :`${nextBtn(true,"finishDay()",'오늘 기록 마치기')}<button class="btn back wide" onclick="oneMore()">한 장면 더 기록하기</button>`}`,'');return;}
  if(st===8){const recent=lsGet(K.recent,[]); const ids=new Set(S.doneList.map(r=>r.id));
   P(`<p class="done">✅</p><p class="q" style="text-align:center">오늘 기록을 마쳤다</p>
+  ${weekCard(true)}
   <div class="row2"><div class="stat"><span>오늘 적은 장면</span><b>${S.doneList.length}개</b></div><div class="stat"><span>오늘 전체 점수</span><b>${S.score}점</b></div></div>
-  <div class="list">${S.doneList.map(r=>`<div class="item">${esc(r.sentence)}<div class="m"><span>${esc(r.match)}</span></div></div>`).join('')}</div>
+  <div class="list">${S.doneList.map(r=>`<div class="item">${sHTML(r.marked||r.sentence)}<div class="m"><span>${esc(r.match)}</span></div></div>`).join('')}</div>
   ${stateLine()}
-  ${recent.filter(r=>!ids.has(r.id)).length?`<p class="lbl">지난 기록</p><div class="list">${recent.filter(r=>!ids.has(r.id)).slice(0,5).map(r=>`<div class="item">${esc(r.sentence)}<div class="m"><span>${esc(r.date)}</span>${r.score!=null?`<span>전체 ${r.score}점</span>`:''}</div></div>`).join('')}</div>`:''}`,
-  `<button class="btn back" style="flex:1" onclick="fresh();render()">새로 기록하기</button>`);return;}
+  ${recent.filter(r=>!ids.has(r.id)).length?`<p class="lbl">지난 기록</p><div class="list">${recent.filter(r=>!ids.has(r.id)).slice(0,5).map(r=>`<div class="item">${sHTML(r.marked||r.sentence)}<div class="m"><span>${esc(r.date)}</span>${r.score!=null?`<span>전체 ${r.score}점</span>`:''}</div></div>`).join('')}</div>`:''}`,
+  `<button class="btn back" style="flex:1" onclick="fresh();render()">새로 기록하기</button>`);if(!soft)countUp();return;}
 }
 function stateLine(){return saveState==='ok'?`<p class="state ok">✅ 보냈다. 아빠 기록장에 추가됐다.</p>`:saveState==='saving'?`<p class="state warn">이 휴대폰에 보관했다. 아빠에게 보내는 중…</p>`:saveState?`<p class="state warn">${esc(saveState)}</p>`:'';}
 
@@ -341,17 +389,17 @@ async function save(){
  const w=whyObj();
  const rec={id:uid(),app:APP,date:today(),createdAt:Date.now(),kind:S.kind,score:S.score,big:S.big,mid:S.mid,res:S.res,
   why:w?w[S.res][0]:null,whyKey:S.why,next:S.next?NEXT[S.next][0]:null,noneText:S.noneText,
-  sentence:sentence(),match:S.match,nones:S.nones,times:S.times,order:S.order,
+  sentence:sentence(),marked:sentenceMarked(),match:S.match,nones:S.nones,times:S.times,order:S.order,
   seqNo:S.doneList.length+1,seqTotal:S.extra?null:S.seq.length,extra:S.extra};
  const kept=lsSet(K.q,[...lsGet(K.q,[]),rec]);
- lsSet(K.recent,[rec,...lsGet(K.recent,[])].slice(0,12));
+ lsSet(K.recent,[rec,...lsGet(K.recent,[])].slice(0,12));addDay();
  S.saved=rec;S.doneList.push(rec);saveState=kept?'saving':'이 휴대폰에 보관하지 못했다. 보내기를 시도한다';S.step=7;render();
  const r=await flush();
  const stillHere=lsGet(K.q,[]).some(x=>x.id===rec.id);
  if(!stillHere)saveState='ok';
  else if(r&&r.pw)saveState='비밀번호가 바뀌었다. 다음에 열 때 새 비밀번호를 넣으면 보관된 기록을 보낸다';
  else saveState='인터넷이 안 돼서 이 휴대폰에 보관했다. 다음에 열 때 자동으로 보낸다';
- if(S.step===7||S.step===8)render();
+ if(S.step===7||S.step===8){soft=true;render();soft=false;} // 보낸 결과로 다시 그릴 때 누름을 막지 않는다
 }
 
 // 열 때·다시 화면에 돌아올 때 보관된 기록을 보낸다
@@ -367,7 +415,7 @@ function splash(){
   +'<rect class="dr" style="--len:210;--t:.55s;--d:.3s" x="245" y="65" width="35" height="70" fill="none" stroke="var(--chalk)" stroke-width="3"/>'
   +'<g class="ball"><circle cx="150" cy="100" r="9" fill="#fff" stroke="var(--ink)" stroke-width="1.5"/><path d="M150 94l4 3-1.5 5h-5L146 97z" fill="var(--ink)"/></g></svg>';
  const el=document.createElement('div'); el.id='splash';
- el.innerHTML=g+'<p class="st">오늘의 장면 기록</p><p class="ss">오늘 기억나는 장면</p>';
+ el.innerHTML=g+'<p class="st">오늘('+todayKo()+')의 장면 기록</p><p class="ss">오늘 기억나는 장면</p>';
  document.body.appendChild(el);
  let done=false; const close=()=>{if(done)return;done=true;el.classList.add('out');lockUntil=performance.now()+350;setTimeout(()=>el.remove(),300);};
  el.addEventListener('click',e=>{e.stopPropagation();close();});
