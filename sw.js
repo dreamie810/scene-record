@@ -1,6 +1,6 @@
 // 오늘의 장면 기록 — 인터넷이 끊겨도 앱 화면이 열리게 하는 파일
 // 화면 파일은 인터넷이 되면 새 것을 받고(새 판 반영), 안 되면 보관본을 쓴다
-const CACHE = 'scene-v25';
+const CACHE = 'scene-v26';
 const FILES = ['./', './index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
